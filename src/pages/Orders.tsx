@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { ref, onValue } from "firebase/database";
-import { db } from "@/lib/firebase";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -13,17 +13,20 @@ const Orders = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const ordersRef = ref(db, "orders");
-    const unsubscribe = onValue(ordersRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const orderList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        setOrders(orderList.reverse());
-      }
+    // Fetching from Firestore 'orders' collection
+    const ordersRef = collection(firestore, "orders");
+    const q = query(ordersRef, orderBy("createdAt", "desc"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const orderList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setOrders(orderList);
+    }, (error) => {
+      console.error("Error fetching orders from Firestore:", error);
     });
+
     return () => unsubscribe();
   }, []);
 

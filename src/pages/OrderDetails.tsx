@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ref, onValue, update } from "firebase/database";
-import { db } from "@/lib/firebase";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2 } from "lucide-react";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -12,19 +12,33 @@ const OrderDetails = () => {
   const [order, setOrder] = useState<any>(null);
 
   useEffect(() => {
-    const orderRef = ref(db, `orders/${id}`);
-    const unsubscribe = onValue(orderRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setOrder({ id, ...data });
+    if (!id) return;
+    
+    const orderRef = doc(firestore, "orders", id);
+    const unsubscribe = onSnapshot(orderRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setOrder({ id: snapshot.id, ...snapshot.data() });
+      } else {
+        showError("Order not found");
+        navigate("/orders");
       }
+    }, (error) => {
+      console.error("Error fetching order details:", error);
     });
+
     return () => unsubscribe();
-  }, [id]);
+  }, [id, navigate]);
 
   const updateStatus = async (newStatus: string) => {
-    await update(ref(db, `orders/${id}`), { status: newStatus });
-    showSuccess(`Order status updated to ${newStatus}`);
+    if (!id) return;
+    try {
+      const orderRef = doc(firestore, "orders", id);
+      await updateDoc(orderRef, { status: newStatus });
+      showSuccess(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      showError("Failed to update status");
+      console.error(error);
+    }
   };
 
   const formatFullAddress = (addr: any) => {
