@@ -2,9 +2,9 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getDatabase } from "firebase/database";
 
-// TODO: User ko apni Firebase config yahan daalni hogi
+// ⚠️ YAHAN APNI ASLI FIREBASE CONFIG DAALEIN
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "PASTE_YOUR_ACTUAL_API_KEY_HERE",
   authDomain: "your-app.firebaseapp.com",
   databaseURL: "https://your-app-default-rtdb.firebaseio.com",
   projectId: "your-app",
