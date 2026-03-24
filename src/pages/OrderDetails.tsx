@@ -13,27 +13,13 @@ const OrderDetails = () => {
 
   useEffect(() => {
     const orderRef = ref(db, `orders/${id}`);
-    onValue(orderRef, (snapshot) => {
+    const unsubscribe = onValue(orderRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setOrder({ id, ...data });
-      } else {
-        // Mock for UI
-        setOrder({
-          id,
-          customerName: "Rahul Sharma",
-          phone: "+91 9876543210",
-          address: "Salt Lake, Sector 5, Kolkata, West Bengal 700091",
-          items: [
-            { name: "Chicken Roll", qty: 2, price: 120 },
-            { name: "Egg Mughlai", qty: 1, price: 110 }
-          ],
-          amount: 350,
-          status: "Pending",
-          paymentType: "COD"
-        });
       }
     });
+    return () => unsubscribe();
   }, [id]);
 
   const updateStatus = async (newStatus: string) => {
@@ -41,11 +27,21 @@ const OrderDetails = () => {
     showSuccess(`Order status updated to ${newStatus}`);
   };
 
-  if (!order) return <div className="p-10 text-center font-bold">Loading...</div>;
+  const formatFullAddress = (addr: any) => {
+    if (!addr) return "No Address Provided";
+    if (typeof addr === 'string') return addr;
+    return `${addr.street || ''}, ${addr.city || ''}, ${addr.pincode || ''}`.replace(/^, |, $/, '');
+  };
+
+  if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
+
+  const customerName = order.customerName || order.address?.name || "Customer";
+  const customerPhone = order.phone || order.address?.phone || "";
+  const totalAmount = order.totalAmount || order.amount || 0;
+  const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
 
   return (
     <div className="min-h-screen bg-white pb-32">
-      {/* Header */}
       <div className="p-6 flex items-center gap-4 border-b">
         <button onClick={() => navigate(-1)} className="p-2 bg-gray-100 rounded-full">
           <ChevronLeft size={24} />
@@ -54,68 +50,71 @@ const OrderDetails = () => {
       </div>
 
       <div className="p-6 space-y-8">
-        {/* Customer Info */}
         <div className="space-y-4">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-black text-gray-800">{order.customerName}</h2>
-              <p className="text-gray-500 font-medium">{order.phone}</p>
+              <h2 className="text-2xl font-black text-gray-800">{customerName}</h2>
+              <p className="text-gray-500 font-medium">{customerPhone}</p>
             </div>
-            <a href={`tel:${order.phone}`} className="p-4 bg-green-100 text-green-600 rounded-2xl">
-              <Phone size={24} />
-            </a>
+            {customerPhone && (
+              <a href={`tel:${customerPhone}`} className="p-4 bg-green-100 text-green-600 rounded-2xl">
+                <Phone size={24} />
+              </a>
+            )}
           </div>
 
           <div className="bg-gray-50 p-4 rounded-2xl space-y-3">
             <div className="flex items-start gap-3">
               <MapPin className="text-orange-600 shrink-0 mt-1" size={20} />
-              <p className="text-sm font-medium text-gray-700 leading-relaxed">{order.address}</p>
+              <p className="text-sm font-medium text-gray-700 leading-relaxed">
+                {formatFullAddress(order.address)}
+              </p>
             </div>
-            <Button className="w-full bg-white border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-bold rounded-xl h-12 gap-2">
+            <Button 
+              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatFullAddress(order.address))}`, '_blank')}
+              className="w-full bg-white border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-bold rounded-xl h-12 gap-2"
+            >
               <Navigation size={18} /> OPEN IN GOOGLE MAPS
             </Button>
           </div>
         </div>
 
-        {/* Items */}
         <div className="space-y-4">
           <h3 className="font-black text-gray-800 uppercase tracking-wider text-sm">Order Items</h3>
           <div className="space-y-3">
-            {order.items?.map((item: any, index: number) => (
+            {items.map((item: any, index: number) => (
               <div key={index} className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <span className="w-6 h-6 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-xs font-bold">
-                    {item.qty}x
+                    {item.quantity || item.qty || 1}x
                   </span>
-                  <span className="font-bold text-gray-700">{item.name}</span>
+                  <span className="font-bold text-gray-700">{item.name || item.title}</span>
                 </div>
-                <span className="font-bold text-gray-800">₹{item.price * item.qty}</span>
+                <span className="font-bold text-gray-800">₹{(item.price || 0) * (item.quantity || item.qty || 1)}</span>
               </div>
             ))}
           </div>
           <div className="pt-4 border-t flex justify-between items-center">
             <span className="text-lg font-black text-gray-800">Total Amount</span>
-            <span className="text-2xl font-black text-orange-600">₹{order.amount}</span>
+            <span className="text-2xl font-black text-orange-600">₹{totalAmount}</span>
           </div>
         </div>
 
-        {/* COD Alert */}
-        {order.paymentType === "COD" && (
+        {(order.paymentMethod === "COD" || !order.paymentMethod) && (
           <div className="bg-yellow-50 border-2 border-yellow-200 p-4 rounded-2xl flex items-center gap-4">
             <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-white">
               <IndianRupee size={24} />
             </div>
             <div>
               <p className="text-xs font-bold text-yellow-700 uppercase">Collect Cash</p>
-              <p className="text-xl font-black text-yellow-900">₹{order.amount}</p>
+              <p className="text-xl font-black text-yellow-900">₹{totalAmount}</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-        {order.status === "Pending" && (
+        {(order.status === "Pending" || !order.status) && (
           <Button 
             onClick={() => updateStatus("Picked")}
             className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white font-black text-lg rounded-2xl shadow-lg shadow-orange-200"
