@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { firestore } from "@/lib/firebase";
+import { firestore, auth } from "@/lib/firebase";
 import BottomNav from "@/components/BottomNav";
 import { Card } from "@/components/ui/card";
 import { IndianRupee, Calendar, PackageCheck } from "lucide-react";
@@ -10,8 +10,16 @@ const Earnings = () => {
   const [totalEarnings, setTotalEarnings] = useState(0);
 
   useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
     const ordersRef = collection(firestore, "orders");
-    const q = query(ordersRef, where("status", "==", "Delivered"));
+    // Filter by status AND delivery boy ID
+    const q = query(
+      ordersRef, 
+      where("status", "==", "Delivered"),
+      where("deliveryBoyId", "==", user.uid)
+    );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const orders = snapshot.docs.map(doc => ({
@@ -30,7 +38,7 @@ const Earnings = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="bg-orange-600 p-8 rounded-b-[40px] text-white shadow-xl">
-        <p className="text-orange-100 font-bold uppercase tracking-widest text-xs mb-2">Total Earnings</p>
+        <p className="text-orange-100 font-bold uppercase tracking-widest text-xs mb-2">My Total Earnings</p>
         <h1 className="text-5xl font-black mb-6 flex items-center gap-2">
           <IndianRupee size={40} strokeWidth={3} /> {totalEarnings.toLocaleString()}
         </h1>
@@ -40,7 +48,7 @@ const Earnings = () => {
       </div>
 
       <div className="p-6 space-y-4">
-        <h3 className="font-black text-gray-800 mb-2">Recent Deliveries</h3>
+        <h3 className="font-black text-gray-800 mb-2">My Recent Deliveries</h3>
         {deliveredOrders.length === 0 ? (
           <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100 text-center">
             <p className="text-gray-400 font-medium">No delivered orders yet.</p>

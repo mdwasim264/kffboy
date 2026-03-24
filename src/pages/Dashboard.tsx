@@ -20,18 +20,19 @@ const Dashboard = () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // 1. Online Status from RTDB
     const statusRef = ref(db, `delivery_boys/${user.uid}/online`);
     onValue(statusRef, (snapshot) => {
       setIsOnline(snapshot.val() || false);
     });
 
-    // 2. Real Stats from Firestore
+    // Filter orders by current delivery boy ID
     const ordersRef = collection(firestore, "orders");
-    const unsubscribe = onSnapshot(ordersRef, (snapshot) => {
+    const q = query(ordersRef, where("deliveryBoyId", "==", user.uid));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => doc.data());
       
-      const assigned = docs.filter(d => d.status === "Pending" || d.status === "Picked").length;
+      const assigned = docs.filter(d => d.status === "Picked").length;
       const delivered = docs.filter(d => d.status === "Delivered").length;
       const pending = docs.filter(d => d.status === "Out for Delivery").length;
       const earnings = docs
@@ -73,7 +74,7 @@ const Dashboard = () => {
           <Card className="p-4 bg-white/10 border-none backdrop-blur-md text-white">
             <div className="flex items-center gap-2 mb-1">
               <IndianRupee size={16} />
-              <span className="text-xs font-medium">Total Earnings</span>
+              <span className="text-xs font-medium">My Earnings</span>
             </div>
             <p className="text-2xl font-black">₹{stats.earnings}</p>
           </Card>
@@ -88,7 +89,7 @@ const Dashboard = () => {
       </div>
 
       <div className="p-6 space-y-4">
-        <h2 className="text-lg font-bold text-gray-800">Live Summary</h2>
+        <h2 className="text-lg font-bold text-gray-800">My Active Orders</h2>
         <div className="grid grid-cols-1 gap-4">
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -96,7 +97,7 @@ const Dashboard = () => {
                 <Package size={24} />
               </div>
               <div>
-                <p className="text-sm text-gray-500 font-medium">Orders to Pick</p>
+                <p className="text-sm text-gray-500 font-medium">Picked Orders</p>
                 <p className="text-xl font-bold text-gray-800">{stats.assigned}</p>
               </div>
             </div>

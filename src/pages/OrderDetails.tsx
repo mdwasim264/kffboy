@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { ref, onValue } from "firebase/database";
-import { firestore, db } from "@/lib/firebase";
+import { firestore, db, auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2 } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
@@ -16,7 +16,6 @@ const OrderDetails = () => {
   useEffect(() => {
     if (!id) return;
     
-    // 1. Fetch Order Details from Firestore
     const orderRef = doc(firestore, "orders", id);
     const unsubscribeFirestore = onSnapshot(orderRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -27,7 +26,6 @@ const OrderDetails = () => {
       }
     });
 
-    // 2. Fetch Address from Realtime Database
     const addressRef = ref(db, `orders/${id}/address`);
     const unsubscribeRTDB = onValue(addressRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -42,10 +40,18 @@ const OrderDetails = () => {
   }, [id, navigate]);
 
   const updateStatus = async (newStatus: string) => {
-    if (!id) return;
+    if (!id || !auth.currentUser) return;
     try {
       const orderRef = doc(firestore, "orders", id);
-      await updateDoc(orderRef, { status: newStatus });
+      const updateData: any = { status: newStatus };
+      
+      // Agar order pick ho raha hai, toh delivery boy ki details add karo
+      if (newStatus === "Picked") {
+        updateData.deliveryBoyId = auth.currentUser.uid;
+        updateData.deliveryBoyName = auth.currentUser.displayName || "Partner";
+      }
+
+      await updateDoc(orderRef, updateData);
       showSuccess(`Order status updated to ${newStatus}`);
     } catch (error) {
       showError("Failed to update status");
