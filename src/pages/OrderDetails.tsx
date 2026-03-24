@@ -4,14 +4,16 @@ import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { ref, onValue } from "firebase/database";
 import { firestore, db, auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2, Check } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
+import { cn } from "@/lib/utils";
 
 const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [rtdbAddress, setRtdbAddress] = useState<any>(null);
+  const [isUpdatingCash, setIsUpdatingCash] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -58,6 +60,24 @@ const OrderDetails = () => {
     }
   };
 
+  const handleCashCollected = async () => {
+    if (!id || order.cashCollected || isUpdatingCash) return;
+    
+    setIsUpdatingCash(true);
+    try {
+      const orderRef = doc(firestore, "orders", id);
+      await updateDoc(orderRef, { 
+        cashCollected: true,
+        cashCollectedAt: new Date()
+      });
+      showSuccess("Cash collection confirmed!");
+    } catch (error) {
+      showError("Failed to update cash status");
+    } finally {
+      setIsUpdatingCash(false);
+    }
+  };
+
   const formatFullAddress = (addr: any) => {
     if (!addr) return "Loading Address...";
     if (typeof addr === 'string') return addr;
@@ -67,8 +87,6 @@ const OrderDetails = () => {
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
 
   const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
-  
-  // Robust amount calculation
   const totalAmount = order.totalAmount || order.amount || order.total || items.reduce((acc: number, item: any) => {
     const price = Number(item.price || 0);
     const qty = Number(item.quantity || item.qty || 1);
@@ -139,15 +157,42 @@ const OrderDetails = () => {
         </div>
 
         {(order.paymentMethod === "COD" || !order.paymentMethod) && (
-          <div className="bg-yellow-50 border-2 border-yellow-200 p-4 rounded-2xl flex items-center gap-4">
-            <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-white">
-              <IndianRupee size={24} />
+          <button 
+            onClick={handleCashCollected}
+            disabled={order.cashCollected || isUpdatingCash}
+            className={cn(
+              "w-full p-4 rounded-2xl flex items-center gap-4 border-2 transition-all active:scale-95",
+              order.cashCollected 
+                ? "bg-green-50 border-green-200" 
+                : "bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
+            )}
+          >
+            <div className={cn(
+              "w-12 h-12 rounded-full flex items-center justify-center text-white shadow-sm",
+              order.cashCollected ? "bg-green-500" : "bg-yellow-400"
+            )}>
+              {order.cashCollected ? <Check size={24} strokeWidth={3} /> : <IndianRupee size={24} />}
             </div>
-            <div>
-              <p className="text-xs font-bold text-yellow-700 uppercase">Collect Cash</p>
-              <p className="text-xl font-black text-yellow-900">₹{totalAmount}</p>
+            <div className="text-left">
+              <p className={cn(
+                "text-xs font-bold uppercase",
+                order.cashCollected ? "text-green-700" : "text-yellow-700"
+              )}>
+                {order.cashCollected ? "Cash Collected" : "Collect Cash"}
+              </p>
+              <p className={cn(
+                "text-xl font-black",
+                order.cashCollected ? "text-green-900" : "text-yellow-900"
+              )}>
+                ₹{totalAmount}
+              </p>
             </div>
-          </div>
+            {order.cashCollected && (
+              <div className="ml-auto bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-full">
+                CONFIRMED
+              </div>
+            )}
+          </button>
         )}
       </div>
 
@@ -171,7 +216,8 @@ const OrderDetails = () => {
         {order.status === "Out for Delivery" && (
           <Button 
             onClick={() => updateStatus("Delivered")}
-            className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black text-lg rounded-2xl shadow-lg shadow-green-200 flex gap-2"
+            disabled={!order.cashCollected && (order.paymentMethod === "COD" || !order.paymentMethod)}
+            className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black text-lg rounded-2xl shadow-lg shadow-green-200 flex gap-2 disabled:opacity-50"
           >
             <CheckCircle2 /> MARK AS DELIVERED
           </Button>
