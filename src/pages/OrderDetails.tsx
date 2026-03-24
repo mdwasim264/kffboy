@@ -45,7 +45,6 @@ const OrderDetails = () => {
       const orderRef = doc(firestore, "orders", id);
       const updateData: any = { status: newStatus };
       
-      // Agar order pick ho raha hai, toh delivery boy ki details add karo
       if (newStatus === "Picked") {
         updateData.deliveryBoyId = auth.currentUser.uid;
         updateData.deliveryBoyName = auth.currentUser.displayName || "Partner";
@@ -67,10 +66,17 @@ const OrderDetails = () => {
 
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
 
+  const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
+  
+  // Robust amount calculation
+  const totalAmount = order.totalAmount || order.amount || order.total || items.reduce((acc: number, item: any) => {
+    const price = Number(item.price || 0);
+    const qty = Number(item.quantity || item.qty || 1);
+    return acc + (price * qty);
+  }, 0);
+
   const customerName = order.customerName || rtdbAddress?.name || "Customer";
   const customerPhone = rtdbAddress?.phone || order.phone || "";
-  const totalAmount = order.totalAmount || order.amount || 0;
-  const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -122,7 +128,7 @@ const OrderDetails = () => {
                   </span>
                   <span className="font-bold text-gray-700">{item.name || item.title}</span>
                 </div>
-                <span className="font-bold text-gray-800">₹{(item.price || 0) * (item.quantity || item.qty || 1)}</span>
+                <span className="font-bold text-gray-800">₹{(Number(item.price) || 0) * (Number(item.quantity || item.qty) || 1)}</span>
               </div>
             ))}
           </div>

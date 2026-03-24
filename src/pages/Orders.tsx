@@ -15,7 +15,6 @@ const Orders = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Fetch Orders from Firestore
     const ordersRef = collection(firestore, "orders");
     const q = query(ordersRef, orderBy("createdAt", "desc"));
     
@@ -27,7 +26,6 @@ const Orders = () => {
       setOrders(orderList);
     });
 
-    // 2. Fetch Addresses from Realtime Database
     const rtdbOrdersRef = ref(db, "orders");
     const unsubscribeRTDB = onValue(rtdbOrdersRef, (snapshot) => {
       const data = snapshot.val();
@@ -47,6 +45,19 @@ const Orders = () => {
       unsubscribeRTDB();
     };
   }, []);
+
+  const getOrderAmount = (order: any) => {
+    const amount = order.totalAmount || order.amount || order.total || 0;
+    if (amount > 0) return amount;
+
+    // Fallback: Calculate from items if total is 0
+    const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
+    return items.reduce((acc: number, item: any) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.quantity || item.qty || 1);
+      return acc + (price * qty);
+    }, 0);
+  };
 
   const formatAddress = (addr: any) => {
     if (!addr) return "Loading Address...";
@@ -81,6 +92,7 @@ const Orders = () => {
         ) : (
           filteredOrders.map((order) => {
             const address = rtdbAddresses[order.id];
+            const amount = getOrderAmount(order);
             return (
               <Card 
                 key={order.id} 
@@ -108,7 +120,7 @@ const Orders = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-gray-800 text-sm font-black">
-                      ₹{order.totalAmount || order.amount || 0} ({order.paymentMethod || "COD"})
+                      ₹{amount} ({order.paymentMethod || "COD"})
                     </div>
                   </div>
                 </div>

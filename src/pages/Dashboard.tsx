@@ -25,7 +25,6 @@ const Dashboard = () => {
       setIsOnline(snapshot.val() || false);
     });
 
-    // Filter orders by current delivery boy ID
     const ordersRef = collection(firestore, "orders");
     const q = query(ordersRef, where("deliveryBoyId", "==", user.uid));
     
@@ -35,9 +34,17 @@ const Dashboard = () => {
       const assigned = docs.filter(d => d.status === "Picked").length;
       const delivered = docs.filter(d => d.status === "Delivered").length;
       const pending = docs.filter(d => d.status === "Out for Delivery").length;
+      
       const earnings = docs
         .filter(d => d.status === "Delivered")
-        .reduce((acc, curr) => acc + (Number(curr.totalAmount) || Number(curr.amount) || 0), 0);
+        .reduce((acc, curr: any) => {
+          let amount = Number(curr.totalAmount || curr.amount || curr.total || 0);
+          if (amount === 0 && curr.items) {
+            const items = Array.isArray(curr.items) ? curr.items : Object.values(curr.items);
+            amount = items.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || item.qty || 1)), 0);
+          }
+          return acc + amount;
+        }, 0);
 
       setStats({ assigned, delivered, pending, earnings });
     });

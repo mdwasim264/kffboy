@@ -14,7 +14,6 @@ const Earnings = () => {
     if (!user) return;
 
     const ordersRef = collection(firestore, "orders");
-    // Filter by status AND delivery boy ID
     const q = query(
       ordersRef, 
       where("status", "==", "Delivered"),
@@ -28,7 +27,14 @@ const Earnings = () => {
       }));
       setDeliveredOrders(orders);
       
-      const total = orders.reduce((acc, curr: any) => acc + (Number(curr.totalAmount) || Number(curr.amount) || 0), 0);
+      const total = orders.reduce((acc, curr: any) => {
+        let amount = Number(curr.totalAmount || curr.amount || curr.total || 0);
+        if (amount === 0 && curr.items) {
+          const items = Array.isArray(curr.items) ? curr.items : Object.values(curr.items);
+          amount = items.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || item.qty || 1)), 0);
+        }
+        return acc + amount;
+      }, 0);
       setTotalEarnings(total);
     });
 
@@ -54,25 +60,32 @@ const Earnings = () => {
             <p className="text-gray-400 font-medium">No delivered orders yet.</p>
           </div>
         ) : (
-          deliveredOrders.map((order) => (
-            <Card key={order.id} className="p-5 border-none shadow-md rounded-3xl flex items-center justify-between bg-white">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
-                  <Calendar size={24} />
+          deliveredOrders.map((order: any) => {
+            let amount = Number(order.totalAmount || order.amount || order.total || 0);
+            if (amount === 0 && order.items) {
+              const items = Array.isArray(order.items) ? order.items : Object.values(order.items);
+              amount = items.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || item.qty || 1)), 0);
+            }
+            return (
+              <Card key={order.id} className="p-5 border-none shadow-md rounded-3xl flex items-center justify-between bg-white">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
+                    <Calendar size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Order #{order.id.slice(-6).toUpperCase()}</p>
+                    <p className="text-xs text-gray-500 font-medium">
+                      {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'Recently'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-800">Order #{order.id.slice(-6).toUpperCase()}</p>
-                  <p className="text-xs text-gray-500 font-medium">
-                    {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'Recently'}
-                  </p>
+                <div className="text-right">
+                  <p className="text-xl font-black text-gray-800">₹{amount}</p>
+                  <p className="text-[10px] font-bold text-green-600 uppercase">Delivered</p>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-xl font-black text-gray-800">₹{order.totalAmount || order.amount || 0}</p>
-                <p className="text-[10px] font-bold text-green-600 uppercase">Delivered</p>
-              </div>
-            </Card>
-          ))
+              </Card>
+            );
+          })
         )}
       </div>
 
