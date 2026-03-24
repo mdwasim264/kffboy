@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { firestore } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
+import { firestore, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2 } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
@@ -10,23 +11,34 @@ const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
+  const [rtdbAddress, setRtdbAddress] = useState<any>(null);
 
   useEffect(() => {
     if (!id) return;
     
+    // 1. Fetch Order Details from Firestore
     const orderRef = doc(firestore, "orders", id);
-    const unsubscribe = onSnapshot(orderRef, (snapshot) => {
+    const unsubscribeFirestore = onSnapshot(orderRef, (snapshot) => {
       if (snapshot.exists()) {
         setOrder({ id: snapshot.id, ...snapshot.data() });
       } else {
         showError("Order not found");
         navigate("/orders");
       }
-    }, (error) => {
-      console.error("Error fetching order details:", error);
     });
 
-    return () => unsubscribe();
+    // 2. Fetch Address from Realtime Database
+    const addressRef = ref(db, `orders/${id}/address`);
+    const unsubscribeRTDB = onValue(addressRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setRtdbAddress(snapshot.val());
+      }
+    });
+
+    return () => {
+      unsubscribeFirestore();
+      unsubscribeRTDB();
+    };
   }, [id, navigate]);
 
   const updateStatus = async (newStatus: string) => {
@@ -42,15 +54,15 @@ const OrderDetails = () => {
   };
 
   const formatFullAddress = (addr: any) => {
-    if (!addr) return "No Address Provided";
+    if (!addr) return "Loading Address...";
     if (typeof addr === 'string') return addr;
     return `${addr.street || ''}, ${addr.city || ''}, ${addr.pincode || ''}`.replace(/^, |, $/, '');
   };
 
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
 
-  const customerName = order.customerName || order.address?.name || "Customer";
-  const customerPhone = order.phone || order.address?.phone || "";
+  const customerName = order.customerName || rtdbAddress?.name || "Customer";
+  const customerPhone = rtdbAddress?.phone || order.phone || "";
   const totalAmount = order.totalAmount || order.amount || 0;
   const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
 
@@ -81,11 +93,11 @@ const OrderDetails = () => {
             <div className="flex items-start gap-3">
               <MapPin className="text-orange-600 shrink-0 mt-1" size={20} />
               <p className="text-sm font-medium text-gray-700 leading-relaxed">
-                {formatFullAddress(order.address)}
+                {formatFullAddress(rtdbAddress)}
               </p>
             </div>
             <Button 
-              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatFullAddress(order.address))}`, '_blank')}
+              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatFullAddress(rtdbAddress))}`, '_blank')}
               className="w-full bg-white border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-bold rounded-xl h-12 gap-2"
             >
               <Navigation size={18} /> OPEN IN GOOGLE MAPS
