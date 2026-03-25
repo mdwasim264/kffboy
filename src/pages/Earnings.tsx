@@ -33,12 +33,20 @@ const Earnings = () => {
       
       const total = filtered.reduce((acc, curr: any) => {
         let amount = Number(curr.totalAmount || curr.amount || curr.total || 0);
+        
+        // Fallback calculation if amount is 0
         if (amount === 0 && curr.items) {
           const items = Array.isArray(curr.items) ? curr.items : Object.values(curr.items);
-          amount = items.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || item.qty || 1)), 0);
+          amount = items.reduce((sum: number, item: any) => {
+            const p = Number(item.price || 0);
+            const q = Number(item.quantity || item.qty || 1);
+            return sum + (p * q);
+          }, 0);
         }
+        
         return acc + amount;
       }, 0);
+      
       setTotalEarnings(total);
     });
 

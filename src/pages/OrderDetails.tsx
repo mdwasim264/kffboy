@@ -61,15 +61,23 @@ const OrderDetails = () => {
   };
 
   const handleCashCollected = async () => {
-    if (!id || order.cashCollected || isUpdatingCash) return;
+    if (!id || !auth.currentUser || order.cashCollected || isUpdatingCash) return;
     
     setIsUpdatingCash(true);
     try {
       const orderRef = doc(firestore, "orders", id);
-      await updateDoc(orderRef, { 
+      const updateData: any = { 
         cashCollected: true,
         cashCollectedAt: new Date()
-      });
+      };
+
+      // Agar order abhi tak pick nahi kiya gaya, toh cash collect karne wale ko hi assign kar do
+      if (!order.deliveryBoyId) {
+        updateData.deliveryBoyId = auth.currentUser.uid;
+        updateData.deliveryBoyName = auth.currentUser.displayName || "Partner";
+      }
+
+      await updateDoc(orderRef, updateData);
       showSuccess("Cash collection confirmed!");
     } catch (error) {
       showError("Failed to update cash status");
