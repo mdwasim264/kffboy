@@ -14,6 +14,7 @@ import OrderDetails from "./pages/OrderDetails";
 import Earnings from "./pages/Earnings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import InstallPWA from "./components/InstallPWA";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <InstallPWA />
         <Toaster />
         <Sonner />
         <BrowserRouter>
