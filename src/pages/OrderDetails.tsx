@@ -78,7 +78,17 @@ const OrderDetails = () => {
   const formatFullAddress = (addr: any) => {
     if (!addr) return "No Address Provided";
     if (typeof addr === 'string') return addr;
-    return `${addr.street || addr.houseNo || ''}, ${addr.city || addr.area || ''}, ${addr.pincode || addr.zip || ''}`.replace(/^, |, $/, '');
+    
+    // Collect all possible address parts
+    const parts = [
+      addr.houseNo || addr.house || addr.flatNo || addr.building,
+      addr.street || addr.road || addr.area,
+      addr.landmark ? `Near ${addr.landmark}` : null,
+      addr.city,
+      addr.pincode || addr.zip
+    ].filter(Boolean); // Remove empty/null values
+
+    return parts.length > 0 ? parts.join(", ") : "Address details missing";
   };
 
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
