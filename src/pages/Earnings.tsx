@@ -32,18 +32,8 @@ const Earnings = () => {
       setEarnedOrders(filtered);
       
       const total = filtered.reduce((acc, curr: any) => {
-        let amount = Number(curr.totalAmount || curr.amount || curr.total || 0);
-        
-        // Fallback calculation if amount is 0
-        if (amount === 0 && curr.items) {
-          const items = Array.isArray(curr.items) ? curr.items : Object.values(curr.items);
-          amount = items.reduce((sum: number, item: any) => {
-            const p = Number(item.price || 0);
-            const q = Number(item.quantity || item.qty || 1);
-            return sum + (p * q);
-          }, 0);
-        }
-        
+        // Using 'total' as per your Firestore structure
+        let amount = Number(curr.total || curr.totalAmount || curr.amount || 0);
         return acc + amount;
       }, 0);
       
@@ -73,11 +63,7 @@ const Earnings = () => {
           </div>
         ) : (
           earnedOrders.map((order: any) => {
-            let amount = Number(order.totalAmount || order.amount || order.total || 0);
-            if (amount === 0 && order.items) {
-              const items = Array.isArray(order.items) ? order.items : Object.values(order.items);
-              amount = items.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || item.qty || 1)), 0);
-            }
+            const amount = Number(order.total || order.totalAmount || 0);
             return (
               <Card key={order.id} className="p-5 border-none shadow-md rounded-3xl flex items-center justify-between bg-white">
                 <div className="flex items-center gap-4">
@@ -87,9 +73,7 @@ const Earnings = () => {
                   <div>
                     <p className="text-sm font-bold text-gray-800">Order #{order.id.slice(-6).toUpperCase()}</p>
                     <p className="text-xs text-gray-500 font-medium">
-                      {order.cashCollectedAt?.seconds 
-                        ? new Date(order.cashCollectedAt.seconds * 1000).toLocaleDateString() 
-                        : (order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'Recently')}
+                      {order.date || "Recently"}
                     </p>
                   </div>
                 </div>

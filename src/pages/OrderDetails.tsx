@@ -35,13 +35,13 @@ const OrderDetails = () => {
     if (!id || !auth.currentUser) return;
     try {
       const orderRef = doc(firestore, "orders", id);
-      const updateData: any = { status: newStatus };
+      const updateData: any = { 
+        status: newStatus,
+        // Always ensure deliveryBoyId is attached when they take action
+        deliveryBoyId: auth.currentUser.uid,
+        deliveryBoyName: auth.currentUser.displayName || "Partner"
+      };
       
-      if (newStatus === "Picked") {
-        updateData.deliveryBoyId = auth.currentUser.uid;
-        updateData.deliveryBoyName = auth.currentUser.displayName || "Partner";
-      }
-
       await updateDoc(orderRef, updateData);
       showSuccess(`Order status updated to ${newStatus}`);
     } catch (error) {
@@ -58,13 +58,10 @@ const OrderDetails = () => {
       const orderRef = doc(firestore, "orders", id);
       const updateData: any = { 
         cashCollected: true,
-        cashCollectedAt: new Date()
+        cashCollectedAt: new Date(),
+        deliveryBoyId: auth.currentUser.uid,
+        deliveryBoyName: auth.currentUser.displayName || "Partner"
       };
-
-      if (!order.deliveryBoyId) {
-        updateData.deliveryBoyId = auth.currentUser.uid;
-        updateData.deliveryBoyName = auth.currentUser.displayName || "Partner";
-      }
 
       await updateDoc(orderRef, updateData);
       showSuccess("Cash collection confirmed!");
@@ -78,7 +75,7 @@ const OrderDetails = () => {
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
 
   const items = Array.isArray(order.items) ? order.items : [];
-  const totalAmount = order.total || 0;
+  const totalAmount = order.total || order.totalAmount || 0;
   const customerName = order.userName || order.address?.name || "Customer";
   const customerPhone = order.userPhone || order.address?.phone || "";
   const fullAddress = order.address?.fullAddress || "No Address Provided";
