@@ -35,9 +35,9 @@ const OrderDetails = () => {
     if (!id || !auth.currentUser) return;
     try {
       const orderRef = doc(firestore, "orders", id);
+      // Saving deliveryBoyId is CRUCIAL for earnings to show up
       const updateData: any = { 
         status: newStatus,
-        // Always ensure deliveryBoyId is attached when they take action
         deliveryBoyId: auth.currentUser.uid,
         deliveryBoyName: auth.currentUser.displayName || "Partner"
       };
