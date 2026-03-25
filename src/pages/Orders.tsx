@@ -4,7 +4,7 @@ import { firestore } from "@/lib/firebase";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MapPin, Phone } from "lucide-react";
+import { MapPin, Phone, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Orders = () => {
@@ -14,6 +14,7 @@ const Orders = () => {
 
   useEffect(() => {
     const ordersRef = collection(firestore, "orders");
+    // Using createdAt (int64) for ordering
     const q = query(ordersRef, orderBy("createdAt", "desc"));
     
     const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
@@ -28,24 +29,6 @@ const Orders = () => {
       unsubscribeFirestore();
     };
   }, []);
-
-  const getOrderAmount = (order: any) => {
-    const amount = order.totalAmount || order.amount || order.total || 0;
-    if (amount > 0) return amount;
-
-    const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
-    return items.reduce((acc: number, item: any) => {
-      const price = Number(item.price || 0);
-      const qty = Number(item.quantity || item.qty || 1);
-      return acc + (price * qty);
-    }, 0);
-  };
-
-  const formatAddress = (addr: any) => {
-    if (!addr) return "No Address Provided";
-    if (typeof addr === 'string') return addr;
-    return `${addr.street || addr.houseNo || ''}, ${addr.city || addr.area || ''}`.replace(/^, /, '');
-  };
 
   const filteredOrders = filter === "All" ? orders : orders.filter(o => o.status === filter);
 
@@ -74,7 +57,10 @@ const Orders = () => {
         ) : (
           filteredOrders.map((order) => {
             const address = order.address;
-            const amount = getOrderAmount(order);
+            const amount = order.total || 0;
+            const customerName = order.userName || address?.name || "Customer";
+            const displayAddress = address?.fullAddress || "No Address Provided";
+            
             return (
               <Card 
                 key={order.id} 
@@ -84,7 +70,7 @@ const Orders = () => {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <p className="text-xs font-bold text-orange-600 mb-1">#{order.id.slice(-6).toUpperCase()}</p>
-                    <h3 className="text-lg font-bold text-gray-800">{order.customerName || address?.name || "Customer"}</h3>
+                    <h3 className="text-lg font-bold text-gray-800">{customerName}</h3>
                   </div>
                   <Badge className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${
                     order.status === "Pending" ? "bg-yellow-100 text-yellow-700" :
@@ -98,18 +84,21 @@ const Orders = () => {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-start gap-2 text-gray-500">
                     <MapPin size={16} className="mt-0.5 shrink-0" />
-                    <p className="text-sm line-clamp-1">{formatAddress(address)}</p>
+                    <p className="text-sm line-clamp-2">{displayAddress}</p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-between">
                     <div className="text-gray-800 text-sm font-black">
-                      ₹{amount} ({order.paymentMethod || "COD"})
+                      ₹{amount}
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold">
+                      <Clock size={12} /> {order.date || "Recently"}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <a 
-                    href={`tel:${address?.phone || order.phone || order.customerPhone}`}
+                    href={`tel:${order.userPhone || address?.phone}`}
                     onClick={(e) => e.stopPropagation()}
                     className="flex-1 bg-orange-50 text-orange-600 py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-orange-100 transition-colors"
                   >

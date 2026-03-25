@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { firestore, auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2, Check } from "lucide-react";
+import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2, Check, Calendar } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
 
@@ -75,33 +75,13 @@ const OrderDetails = () => {
     }
   };
 
-  const formatFullAddress = (addr: any) => {
-    if (!addr) return "No Address Provided";
-    if (typeof addr === 'string') return addr;
-    
-    // Collect all possible address parts
-    const parts = [
-      addr.houseNo || addr.house || addr.flatNo || addr.building,
-      addr.street || addr.road || addr.area,
-      addr.landmark ? `Near ${addr.landmark}` : null,
-      addr.city,
-      addr.pincode || addr.zip
-    ].filter(Boolean); // Remove empty/null values
-
-    return parts.length > 0 ? parts.join(", ") : "Address details missing";
-  };
-
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
 
-  const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
-  const totalAmount = order.totalAmount || order.amount || order.total || items.reduce((acc: number, item: any) => {
-    const price = Number(item.price || 0);
-    const qty = Number(item.quantity || item.qty || 1);
-    return acc + (price * qty);
-  }, 0);
-
-  const customerName = order.customerName || order.address?.name || "Customer";
-  const customerPhone = order.address?.phone || order.phone || order.customerPhone || "";
+  const items = Array.isArray(order.items) ? order.items : [];
+  const totalAmount = order.total || 0;
+  const customerName = order.userName || order.address?.name || "Customer";
+  const customerPhone = order.userPhone || order.address?.phone || "";
+  const fullAddress = order.address?.fullAddress || "No Address Provided";
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -118,6 +98,9 @@ const OrderDetails = () => {
             <div>
               <h2 className="text-2xl font-black text-gray-800">{customerName}</h2>
               <p className="text-gray-500 font-medium">{customerPhone}</p>
+              <div className="flex items-center gap-1 text-xs text-gray-400 mt-1 font-bold">
+                <Calendar size={14} /> {order.date || "N/A"}
+              </div>
             </div>
             {customerPhone && (
               <a href={`tel:${customerPhone}`} className="p-4 bg-green-100 text-green-600 rounded-2xl">
@@ -130,11 +113,11 @@ const OrderDetails = () => {
             <div className="flex items-start gap-3">
               <MapPin className="text-orange-600 shrink-0 mt-1" size={20} />
               <p className="text-sm font-medium text-gray-700 leading-relaxed">
-                {formatFullAddress(order.address)}
+                {fullAddress}
               </p>
             </div>
             <Button 
-              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatFullAddress(order.address))}`, '_blank')}
+              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`, '_blank')}
               className="w-full bg-white border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-bold rounded-xl h-12 gap-2"
             >
               <Navigation size={18} /> OPEN IN GOOGLE MAPS
@@ -144,16 +127,19 @@ const OrderDetails = () => {
 
         <div className="space-y-4">
           <h3 className="font-black text-gray-800 uppercase tracking-wider text-sm">Order Items</h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {items.map((item: any, index: number) => (
-              <div key={index} className="flex justify-between items-center">
+              <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 bg-orange-100 text-orange-600 rounded flex items-center justify-center text-xs font-bold">
-                    {item.quantity || item.qty || 1}x
-                  </span>
-                  <span className="font-bold text-gray-700">{item.name || item.title}</span>
+                  {item.image && (
+                    <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                  )}
+                  <div>
+                    <p className="font-bold text-gray-800">{item.name}</p>
+                    <p className="text-xs text-gray-500 font-bold">{item.quantity} x ₹{item.price}</p>
+                  </div>
                 </div>
-                <span className="font-bold text-gray-800">₹{(Number(item.price) || 0) * (Number(item.quantity || item.qty) || 1)}</span>
+                <span className="font-black text-gray-800">₹{(item.price || 0) * (item.quantity || 1)}</span>
               </div>
             ))}
           </div>
@@ -163,44 +149,42 @@ const OrderDetails = () => {
           </div>
         </div>
 
-        {(order.paymentMethod === "COD" || !order.paymentMethod) && (
-          <button 
-            onClick={handleCashCollected}
-            disabled={order.cashCollected || isUpdatingCash}
-            className={cn(
-              "w-full p-4 rounded-2xl flex items-center gap-4 border-2 transition-all active:scale-95",
-              order.cashCollected 
-                ? "bg-green-50 border-green-200" 
-                : "bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
-            )}
-          >
-            <div className={cn(
-              "w-12 h-12 rounded-full flex items-center justify-center text-white shadow-sm",
-              order.cashCollected ? "bg-green-500" : "bg-yellow-400"
+        <button 
+          onClick={handleCashCollected}
+          disabled={order.cashCollected || isUpdatingCash}
+          className={cn(
+            "w-full p-4 rounded-2xl flex items-center gap-4 border-2 transition-all active:scale-95",
+            order.cashCollected 
+              ? "bg-green-50 border-green-200" 
+              : "bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
+          )}
+        >
+          <div className={cn(
+            "w-12 h-12 rounded-full flex items-center justify-center text-white shadow-sm",
+            order.cashCollected ? "bg-green-500" : "bg-yellow-400"
+          )}>
+            {order.cashCollected ? <Check size={24} strokeWidth={3} /> : <IndianRupee size={24} />}
+          </div>
+          <div className="text-left">
+            <p className={cn(
+              "text-xs font-bold uppercase",
+              order.cashCollected ? "text-green-700" : "text-yellow-700"
             )}>
-              {order.cashCollected ? <Check size={24} strokeWidth={3} /> : <IndianRupee size={24} />}
+              {order.cashCollected ? "Cash Collected" : "Collect Cash"}
+            </p>
+            <p className={cn(
+              "text-xl font-black",
+              order.cashCollected ? "text-green-900" : "text-yellow-900"
+            )}>
+              ₹{totalAmount}
+            </p>
+          </div>
+          {order.cashCollected && (
+            <div className="ml-auto bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-full">
+              CONFIRMED
             </div>
-            <div className="text-left">
-              <p className={cn(
-                "text-xs font-bold uppercase",
-                order.cashCollected ? "text-green-700" : "text-yellow-700"
-              )}>
-                {order.cashCollected ? "Cash Collected" : "Collect Cash"}
-              </p>
-              <p className={cn(
-                "text-xl font-black",
-                order.cashCollected ? "text-green-900" : "text-yellow-900"
-              )}>
-                ₹{totalAmount}
-              </p>
-            </div>
-            {order.cashCollected && (
-              <div className="ml-auto bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-full">
-                CONFIRMED
-              </div>
-            )}
-          </button>
-        )}
+          )}
+        </button>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
@@ -223,7 +207,7 @@ const OrderDetails = () => {
         {order.status === "Out for Delivery" && (
           <Button 
             onClick={() => updateStatus("Delivered")}
-            disabled={!order.cashCollected && (order.paymentMethod === "COD" || !order.paymentMethod)}
+            disabled={!order.cashCollected}
             className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black text-lg rounded-2xl shadow-lg shadow-green-200 flex gap-2 disabled:opacity-50"
           >
             <CheckCircle2 /> MARK AS DELIVERED
