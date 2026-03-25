@@ -15,12 +15,16 @@ import Earnings from "./pages/Earnings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import InstallPWA from "./components/InstallPWA";
+import { useOrderNotification } from "./hooks/useOrderNotification";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+const AppContent = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Initialize order notifications
+  useOrderNotification();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -33,23 +37,29 @@ const App = () => {
   if (loading) return <div className="h-screen flex items-center justify-center font-black text-orange-600">KFF LOADING...</div>;
 
   return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+        <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" />} />
+        <Route path="/order/:id" element={user ? <OrderDetails /> : <Navigate to="/login" />} />
+        <Route path="/earnings" element={user ? <Earnings /> : <Navigate to="/login" />} />
+        <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+const App = () => {
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <InstallPWA />
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
-            <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-            <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" />} />
-            <Route path="/order/:id" element={user ? <OrderDetails /> : <Navigate to="/login" />} />
-            <Route path="/earnings" element={user ? <Earnings /> : <Navigate to="/login" />} />
-            <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
-            <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
