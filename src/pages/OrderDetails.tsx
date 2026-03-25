@@ -1,8 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { ref, onValue } from "firebase/database";
-import { firestore, db, auth } from "@/lib/firebase";
+import { firestore, auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, MapPin, Phone, Navigation, IndianRupee, CheckCircle2, Check } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
@@ -12,7 +11,6 @@ const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
-  const [rtdbAddress, setRtdbAddress] = useState<any>(null);
   const [isUpdatingCash, setIsUpdatingCash] = useState(false);
 
   useEffect(() => {
@@ -28,16 +26,8 @@ const OrderDetails = () => {
       }
     });
 
-    const addressRef = ref(db, `orders/${id}/address`);
-    const unsubscribeRTDB = onValue(addressRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setRtdbAddress(snapshot.val());
-      }
-    });
-
     return () => {
       unsubscribeFirestore();
-      unsubscribeRTDB();
     };
   }, [id, navigate]);
 
@@ -71,7 +61,6 @@ const OrderDetails = () => {
         cashCollectedAt: new Date()
       };
 
-      // Agar order abhi tak pick nahi kiya gaya, toh cash collect karne wale ko hi assign kar do
       if (!order.deliveryBoyId) {
         updateData.deliveryBoyId = auth.currentUser.uid;
         updateData.deliveryBoyName = auth.currentUser.displayName || "Partner";
@@ -87,9 +76,9 @@ const OrderDetails = () => {
   };
 
   const formatFullAddress = (addr: any) => {
-    if (!addr) return "Loading Address...";
+    if (!addr) return "No Address Provided";
     if (typeof addr === 'string') return addr;
-    return `${addr.street || ''}, ${addr.city || ''}, ${addr.pincode || ''}`.replace(/^, |, $/, '');
+    return `${addr.street || addr.houseNo || ''}, ${addr.city || addr.area || ''}, ${addr.pincode || addr.zip || ''}`.replace(/^, |, $/, '');
   };
 
   if (!order) return <div className="h-screen flex items-center justify-center font-black text-orange-600">LOADING ORDER...</div>;
@@ -101,8 +90,8 @@ const OrderDetails = () => {
     return acc + (price * qty);
   }, 0);
 
-  const customerName = order.customerName || rtdbAddress?.name || "Customer";
-  const customerPhone = rtdbAddress?.phone || order.phone || "";
+  const customerName = order.customerName || order.address?.name || "Customer";
+  const customerPhone = order.address?.phone || order.phone || order.customerPhone || "";
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -131,11 +120,11 @@ const OrderDetails = () => {
             <div className="flex items-start gap-3">
               <MapPin className="text-orange-600 shrink-0 mt-1" size={20} />
               <p className="text-sm font-medium text-gray-700 leading-relaxed">
-                {formatFullAddress(rtdbAddress)}
+                {formatFullAddress(order.address)}
               </p>
             </div>
             <Button 
-              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatFullAddress(rtdbAddress))}`, '_blank')}
+              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatFullAddress(order.address))}`, '_blank')}
               className="w-full bg-white border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-bold rounded-xl h-12 gap-2"
             >
               <Navigation size={18} /> OPEN IN GOOGLE MAPS

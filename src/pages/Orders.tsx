@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import { ref, onValue } from "firebase/database";
-import { firestore, db } from "@/lib/firebase";
+import { firestore } from "@/lib/firebase";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -10,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 
 const Orders = () => {
   const [orders, setOrders] = useState<any[]>([]);
-  const [rtdbAddresses, setRtdbAddresses] = useState<Record<string, any>>({});
   const [filter, setFilter] = useState("All");
   const navigate = useNavigate();
 
@@ -26,23 +24,8 @@ const Orders = () => {
       setOrders(orderList);
     });
 
-    const rtdbOrdersRef = ref(db, "orders");
-    const unsubscribeRTDB = onValue(rtdbOrdersRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const addresses: Record<string, any> = {};
-        Object.keys(data).forEach(key => {
-          if (data[key].address) {
-            addresses[key] = data[key].address;
-          }
-        });
-        setRtdbAddresses(addresses);
-      }
-    });
-
     return () => {
       unsubscribeFirestore();
-      unsubscribeRTDB();
     };
   }, []);
 
@@ -50,7 +33,6 @@ const Orders = () => {
     const amount = order.totalAmount || order.amount || order.total || 0;
     if (amount > 0) return amount;
 
-    // Fallback: Calculate from items if total is 0
     const items = order.items ? (Array.isArray(order.items) ? order.items : Object.values(order.items)) : [];
     return items.reduce((acc: number, item: any) => {
       const price = Number(item.price || 0);
@@ -60,9 +42,9 @@ const Orders = () => {
   };
 
   const formatAddress = (addr: any) => {
-    if (!addr) return "Loading Address...";
+    if (!addr) return "No Address Provided";
     if (typeof addr === 'string') return addr;
-    return `${addr.street || ''}, ${addr.city || ''}`.replace(/^, /, '');
+    return `${addr.street || addr.houseNo || ''}, ${addr.city || addr.area || ''}`.replace(/^, /, '');
   };
 
   const filteredOrders = filter === "All" ? orders : orders.filter(o => o.status === filter);
@@ -91,7 +73,7 @@ const Orders = () => {
           <div className="text-center py-20 text-gray-400 font-bold">No orders found</div>
         ) : (
           filteredOrders.map((order) => {
-            const address = rtdbAddresses[order.id];
+            const address = order.address;
             const amount = getOrderAmount(order);
             return (
               <Card 
@@ -127,7 +109,7 @@ const Orders = () => {
 
                 <div className="flex gap-2">
                   <a 
-                    href={`tel:${address?.phone || order.phone}`}
+                    href={`tel:${address?.phone || order.phone || order.customerPhone}`}
                     onClick={(e) => e.stopPropagation()}
                     className="flex-1 bg-orange-50 text-orange-600 py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-orange-100 transition-colors"
                   >
