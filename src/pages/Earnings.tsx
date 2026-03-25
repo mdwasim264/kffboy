@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { IndianRupee, Calendar, PackageCheck } from "lucide-react";
 
 const Earnings = () => {
-  const [deliveredOrders, setDeliveredOrders] = useState<any[]>([]);
+  const [earnedOrders, setEarnedOrders] = useState<any[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
 
   useEffect(() => {
@@ -14,20 +14,24 @@ const Earnings = () => {
     if (!user) return;
 
     const ordersRef = collection(firestore, "orders");
+    // Get all orders assigned to this delivery boy
     const q = query(
       ordersRef, 
-      where("status", "==", "Delivered"),
       where("deliveryBoyId", "==", user.uid)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const orders = snapshot.docs.map(doc => ({
+      const allOrders = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setDeliveredOrders(orders);
+
+      // Filter orders that are either Delivered OR Cash is Collected
+      const filtered = allOrders.filter((o: any) => o.status === "Delivered" || o.cashCollected === true);
       
-      const total = orders.reduce((acc, curr: any) => {
+      setEarnedOrders(filtered);
+      
+      const total = filtered.reduce((acc, curr: any) => {
         let amount = Number(curr.totalAmount || curr.amount || curr.total || 0);
         if (amount === 0 && curr.items) {
           const items = Array.isArray(curr.items) ? curr.items : Object.values(curr.items);
@@ -49,18 +53,18 @@ const Earnings = () => {
           <IndianRupee size={40} strokeWidth={3} /> {totalEarnings.toLocaleString()}
         </h1>
         <div className="bg-white/20 px-4 py-2 rounded-full text-sm font-bold inline-flex items-center gap-2">
-          <PackageCheck size={16} /> {deliveredOrders.length} Orders Delivered
+          <PackageCheck size={16} /> {earnedOrders.length} Successful Transactions
         </div>
       </div>
 
       <div className="p-6 space-y-4">
-        <h3 className="font-black text-gray-800 mb-2">My Recent Deliveries</h3>
-        {deliveredOrders.length === 0 ? (
+        <h3 className="font-black text-gray-800 mb-2">My Recent Earnings</h3>
+        {earnedOrders.length === 0 ? (
           <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100 text-center">
-            <p className="text-gray-400 font-medium">No delivered orders yet.</p>
+            <p className="text-gray-400 font-medium">No earnings yet.</p>
           </div>
         ) : (
-          deliveredOrders.map((order: any) => {
+          earnedOrders.map((order: any) => {
             let amount = Number(order.totalAmount || order.amount || order.total || 0);
             if (amount === 0 && order.items) {
               const items = Array.isArray(order.items) ? order.items : Object.values(order.items);
@@ -75,13 +79,17 @@ const Earnings = () => {
                   <div>
                     <p className="text-sm font-bold text-gray-800">Order #{order.id.slice(-6).toUpperCase()}</p>
                     <p className="text-xs text-gray-500 font-medium">
-                      {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'Recently'}
+                      {order.cashCollectedAt?.seconds 
+                        ? new Date(order.cashCollectedAt.seconds * 1000).toLocaleDateString() 
+                        : (order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'Recently')}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-black text-gray-800">₹{amount}</p>
-                  <p className="text-[10px] font-bold text-green-600 uppercase">Delivered</p>
+                  <p className={`text-[10px] font-bold uppercase ${order.status === 'Delivered' ? 'text-green-600' : 'text-blue-600'}`}>
+                    {order.status === 'Delivered' ? 'Delivered' : 'Cash Collected'}
+                  </p>
                 </div>
               </Card>
             );

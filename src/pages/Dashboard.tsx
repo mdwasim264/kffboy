@@ -35,8 +35,9 @@ const Dashboard = () => {
       const delivered = docs.filter(d => d.status === "Delivered").length;
       const pending = docs.filter(d => d.status === "Out for Delivery").length;
       
+      // Earning = Delivered OR Cash Collected
       const earnings = docs
-        .filter(d => d.status === "Delivered")
+        .filter(d => d.status === "Delivered" || d.cashCollected === true)
         .reduce((acc, curr: any) => {
           let amount = Number(curr.totalAmount || curr.amount || curr.total || 0);
           if (amount === 0 && curr.items) {
